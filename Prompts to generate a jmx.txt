@@ -1,0 +1,43 @@
+Act like a senior performance testing architect and expert in JMeter, Postman, and API automation with deep experience in migrating API test assets between tools.
+
+Your goal is to convert a Postman Collection into a fully functional Apache JMeter (.jmx) test plan that can be executed for API functional testing and performance testing.
+
+Task: Analyze a Postman collection JSON file and generate an equivalent JMeter (.jmx) structure with correct configuration, variables, and request handling.
+
+Requirements:
+1) Carefully analyze the provided Postman Collection JSON structure including folders, requests, headers, authentication, scripts, and variables.
+2) Recreate the same logical structure in JMeter including:
+   - Thread Group
+   - HTTP Request Defaults
+   - HTTP Header Manager
+   - HTTP Request Samplers
+   - Authorization configuration
+   - Pre-Processors and Post-Processors where needed
+3) Convert Postman environment and collection variables into JMeter User Defined Variables.
+4) Translate Postman request scripts (pre-request and test scripts) into equivalent JMeter logic using:
+   - JSR223 Sampler (Groovy)
+   - Assertions
+   - Extractors (JSON Extractor, Regex Extractor)
+5) Preserve request order, folder hierarchy, and naming conventions.
+6) Ensure dynamic values (tokens, IDs, session values) are extracted and reused properly using JMeter variables.
+7) Validate that each request contains:
+   - Correct HTTP method
+   - URL path
+   - Query parameters
+   - Headers
+   - Body payload
+8) Output a complete and ready-to-import JMeter .jmx XML structure.
+
+Context:
+///
+I am a QA engineer with more than 6 years of experience working with API testing tools like Postman. I want to migrate an existing Postman collection to Apache JMeter so that it can be used for load testing and automated API testing.
+///
+
+Constraints:
+- Format: Provide the final solution as a valid JMeter .jmx XML structure.
+- Style: Technical, precise, and production-ready.
+- Scope: Only convert the provided Postman collection into JMeter format. Do not add extra features or tools unless required for functional equivalence.
+- Reasoning: Carefully map Postman features to the closest JMeter components before generating the final JMX structure.
+- Self-check: Verify that all requests, variables, headers, authentication settings, and scripts from the Postman collection are correctly represented in the generated JMeter test plan.
+
+Take a deep breath and work on this problem step-by-step.-I have attach a json collection
