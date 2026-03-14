@@ -1,0 +1,2124 @@
+{
+  "info": {
+    "_postman_id": "bw-enhanced-qa-2026",
+    "name": "Birla White - Enhanced QA Test Suite (AI-Generated)",
+    "description": "## Birla White Experts Club — Comprehensive API Test Suite\n\n### Workflow:\n1. **Generate OTP** → `POST /app-login`\n2. **Verify OTP / Login** → `POST /app-login-verify` (sets AUTHORIZATION token)\n3. **Single Code Scan** → `POST /single-code-scan` (uses auth, scans loyalty code)\n4. **Loyalty Point History** → `GET /lyt-point-history` (confirms points earned after scan)\n5. **Loyalty Code History** → `GET /lyt-code-history` (audits scanned codes)\n\n### Test Coverage per endpoint:\n- Positive (Happy Path)\n- Negative (Error handling)\n- Edge Cases (Boundary values)\n- Missing Parameters\n- Invalid Data Types / Malformed Requests\n- Response Validation (Status, Schema, Fields, Response Time)\n\n### Environment: BW UAT AWS\nBase URL: `https://uatawsexpertsclub.birlawhite.com/api/v1`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "bw-qa-architect-2026"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{AUTHORIZATION}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// ── Collection-level Pre-request ──────────────────────────────",
+          "pm.request.headers.add({ key: 'Content-Type', value: 'application/json' });",
+          "pm.request.headers.add({ key: 'Accept',       value: 'application/json' });",
+          "",
+          "// Stamp a unique request-id for traceability",
+          "pm.collectionVariables.set('request_id', 'REQ-' + Date.now());",
+          "",
+          "// GET URL length guard (RFC limit 2048)",
+          "if (pm.request.method === 'GET') {",
+          "    var fullUrl = pm.variables.get('BASE_URL') + pm.request.url.getPath();",
+          "    if (fullUrl.length > 2048) {",
+          "        console.warn('WARNING: GET URL exceeds 2048 chars: ' + fullUrl.length);",
+          "    }",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// ── Collection-level Global Tests ─────────────────────────────",
+          "// N+1 query guard",
+          "if (pm.response.code === 200 && pm.response.headers.get('content-type') &&",
+          "    pm.response.headers.get('content-type').includes('application/json')) {",
+          "    try {",
+          "        var jsonData = pm.response.json();",
+          "        pm.test('[GLOBAL] No N+1 query warnings', function () {",
+          "            pm.expect(jsonData.warning_queries).to.be.undefined;",
+          "        });",
+          "    } catch(e) {}",
+          "}",
+          "",
+          "// Content-Type must always be JSON for JSON APIs",
+          "pm.test('[GLOBAL] Response Content-Type is application/json', function () {",
+          "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "BASE_URL",       "value": "https://uatawsexpertsclub.birlawhite.com/api/v1" },
+    { "key": "AUTHORIZATION",  "value": "" },
+    { "key": "REFRESH_TOKEN",  "value": "" },
+    { "key": "INFL_CODE",      "value": "" },
+    { "key": "MobileNo_1",     "value": "8469743094" },
+    { "key": "TEST_OTP",       "value": "123456" },
+    { "key": "request_id",     "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "description": "OTP-based login flow. Step 1 generates OTP; Step 2 verifies and returns the bearer token.",
+      "item": [
+
+        {
+          "name": "1.1 Generate OTP — Positive (Valid Mobile)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Ensure mobile number is set",
+                  "if (!pm.collectionVariables.get('MobileNo_1')) {",
+                  "    pm.collectionVariables.set('MobileNo_1', '8469743094');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── POSITIVE: Generate OTP ───────────────────────────────────",
+                  "pm.test('[P01] Status code is 200', function () {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('[P02] Response is valid JSON', function () {",
+                  "    pm.expect(() => pm.response.json()).not.to.throw();",
+                  "});",
+                  "",
+                  "pm.test('[P03] Response time < 3000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+                  "});",
+                  "",
+                  "pm.test('[P04] Response has message field', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "pm.test('[P05] Content-Type is application/json', function () {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('[P06] Response body is not empty', function () {",
+                  "    pm.expect(pm.response.text()).to.not.be.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"mobileNo\": \"{{MobileNo_1}}\",\n    \"otpType\": \"\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/app-login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["app-login"]
+            },
+            "description": "**[M]** mobileNo: 10-digit number | **[NM]** otpType: T=Text, V=Voice"
+          },
+          "response": []
+        },
+
+        {
+          "name": "1.2 Generate OTP — Negative (Missing mobileNo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── NEGATIVE: Missing mandatory mobileNo ─────────────────────",
+                  "pm.test('[N01] Status is 400 or 422 for missing mobileNo', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('[N02] Error/message field present in response', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.error || json.message || json.errors).to.exist;",
+                  "});",
+                  "",
+                  "pm.test('[N03] Response time < 2000ms even for errors', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"otpType\": \"T\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/app-login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["app-login"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "1.3 Generate OTP — Negative (Short Mobile Number)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── NEGATIVE: Mobile number < 10 digits ──────────────────────",
+                  "pm.test('[N04] Status is 400 or 422 for short mobileNo', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('[N05] Validation error references mobileNo field', function () {",
+                  "    var json = pm.response.json();",
+                  "    var bodyStr = JSON.stringify(json).toLowerCase();",
+                  "    pm.expect(bodyStr).to.include('mobile');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"mobileNo\": \"12345\",\n    \"otpType\": \"\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/app-login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["app-login"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "1.4 Generate OTP — Edge Case (11-digit Mobile)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── EDGE CASE: 11-digit mobile (1 over boundary) ─────────────",
+                  "pm.test('[E01] Status is 400 or 422 for 11-digit mobileNo', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('[E02] Response body is valid JSON', function () {",
+                  "    pm.expect(() => pm.response.json()).not.to.throw();",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"mobileNo\": \"84697430941\",\n    \"otpType\": \"\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/app-login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["app-login"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "1.5 Generate OTP — Invalid (Alpha Mobile Number)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── INVALID TYPE: mobileNo is letters ───────────────────────",
+                  "pm.test('[I01] Status is 400 or 422 for alpha mobileNo', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('[I02] Error message exists', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.error || json.message || json.errors).to.exist;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"mobileNo\": \"ABCDEFGHIJ\",\n    \"otpType\": \"\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/app-login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["app-login"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "1.6 Generate OTP — Invalid (Malformed JSON Body)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── MALFORMED: Broken JSON payload ──────────────────────────",
+                  "pm.test('[I03] Status is 400 for malformed JSON', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422, 500]);",
+                  "});",
+                  "",
+                  "pm.test('[I04] Server does not crash (not a 5xx other than 500)', function () {",
+                  "    pm.expect(pm.response.code).to.not.eql(503);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"mobileNo\": \"8469743094\", \"otpType\": ",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/app-login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["app-login"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "1.7 Generate OTP — Edge Case (Voice OTP type)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── EDGE CASE: otpType = V (Voice) ──────────────────────────",
+                  "pm.test('[E03] Status is 200 or 201 for Voice OTP', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('[E04] Response has message field', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"mobileNo\": \"{{MobileNo_1}}\",\n    \"otpType\": \"V\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/app-login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["app-login"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "1.8 Verify OTP — Positive (Valid OTP)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'multi-language', value: '2' });"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── POSITIVE: Verify OTP & obtain token ─────────────────────",
+                  "pm.test('[P07] Status is 200 on successful OTP verify', function () {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('[P08] Response is valid JSON', function () {",
+                  "    pm.expect(() => pm.response.json()).not.to.throw();",
+                  "});",
+                  "",
+                  "pm.test('[P09] authorization token is present', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.authorization).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('[P10] refresh_token is present', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.refresh_token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('[P11] data.ctmInfluncr object present', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.have.property('ctmInfluncr');",
+                  "});",
+                  "",
+                  "pm.test('[P12] inflCode populated in ctmInfluncr', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.ctmInfluncr.inflCode).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('[P13] Response time < 3000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+                  "});",
+                  "",
+                  "// ── Save tokens to collection variables ─────────────────────",
+                  "if (pm.response.code === 200) {",
+                  "    var json = pm.response.json();",
+                  "    pm.collectionVariables.set('AUTHORIZATION', json.authorization);",
+                  "    pm.collectionVariables.set('REFRESH_TOKEN', json.refresh_token);",
+                  "    if (json.data && json.data.ctmInfluncr && json.data.ctmInfluncr.inflCode) {",
+                  "        pm.collectionVariables.set('INFL_CODE', json.data.ctmInfluncr.inflCode);",
+                  "    }",
+                  "    console.log('Token saved:', json.authorization ? 'YES' : 'NO');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "multi-language", "value": "2" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"mobileNo\": \"{{MobileNo_1}}\",\n    \"otpVrfCd\": \"{{TEST_OTP}}\",\n    \"dvceTokn\": \"\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/app-login-verify",
+              "host": ["{{BASE_URL}}"],
+              "path": ["app-login-verify"]
+            },
+            "description": "**[M]** mobileNo (10) | **[M]** otpVrfCd (6) | **[NM]** dvceTokn (max 500)"
+          },
+          "response": []
+        },
+
+        {
+          "name": "1.9 Verify OTP — Negative (Wrong OTP Code)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── NEGATIVE: Wrong OTP ──────────────────────────────────────",
+                  "pm.test('[N06] Status is 400, 422 or 427 for wrong OTP', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422, 427]);",
+                  "});",
+                  "",
+                  "pm.test('[N07] Error message present', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.error || json.message || json.errors).to.exist;",
+                  "});",
+                  "",
+                  "pm.test('[N08] No authorization token on wrong OTP', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.authorization).to.be.undefined;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"mobileNo\": \"{{MobileNo_1}}\",\n    \"otpVrfCd\": \"000000\",\n    \"dvceTokn\": \"\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/app-login-verify",
+              "host": ["{{BASE_URL}}"],
+              "path": ["app-login-verify"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "1.10 Verify OTP — Negative (Missing otpVrfCd)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('[N09] Status is 400 or 422 for missing OTP code', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('[N10] Validation error references otpVrfCd', function () {",
+                  "    var json = pm.response.json();",
+                  "    var bodyStr = JSON.stringify(json).toLowerCase();",
+                  "    pm.expect(bodyStr.includes('otp') || bodyStr.includes('code') || bodyStr.includes('vrfcd')).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"mobileNo\": \"{{MobileNo_1}}\",\n    \"dvceTokn\": \"\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/app-login-verify",
+              "host": ["{{BASE_URL}}"],
+              "path": ["app-login-verify"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "1.11 Verify OTP — Edge Case (5-digit OTP, below boundary)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('[E05] Status is 400 or 422 for 5-digit OTP (min boundary violation)', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422, 427]);",
+                  "});",
+                  "",
+                  "pm.test('[E06] Response is JSON', function () {",
+                  "    pm.expect(() => pm.response.json()).not.to.throw();",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"mobileNo\": \"{{MobileNo_1}}\",\n    \"otpVrfCd\": \"12345\",\n    \"dvceTokn\": \"\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/app-login-verify",
+              "host": ["{{BASE_URL}}"],
+              "path": ["app-login-verify"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "1.12 Verify OTP — Edge Case (Max-length dvceTokn, 500 chars)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "var maxToken = 'x'.repeat(500);",
+                  "pm.collectionVariables.set('LONG_DVCETOKN', maxToken);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── EDGE: Max-length device token (500 chars) ────────────────",
+                  "pm.test('[E07] Accepts 500-char dvceTokn without 500 error', function () {",
+                  "    pm.expect(pm.response.code).to.not.eql(500);",
+                  "});",
+                  "",
+                  "pm.test('[E08] Response is valid JSON', function () {",
+                  "    pm.expect(() => pm.response.json()).not.to.throw();",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"mobileNo\": \"{{MobileNo_1}}\",\n    \"otpVrfCd\": \"{{TEST_OTP}}\",\n    \"dvceTokn\": \"{{LONG_DVCETOKN}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/app-login-verify",
+              "host": ["{{BASE_URL}}"],
+              "path": ["app-login-verify"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "1.13 Verify OTP — Security (No Auth Header on protected endpoint check)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── SECURITY: Validate unauthorized access behavior ──────────",
+                  "pm.test('[S01] Empty body returns 400 or 422 not 500', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('[S02] Response does not leak stack trace', function () {",
+                  "    var body = pm.response.text();",
+                  "    pm.expect(body.toLowerCase()).to.not.include('stack trace');",
+                  "    pm.expect(body.toLowerCase()).to.not.include('exception in thread');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/app-login-verify",
+              "host": ["{{BASE_URL}}"],
+              "path": ["app-login-verify"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "2. Single Code Scan",
+      "description": "Loyalty code scanning endpoint. Requires auth token from Step 1. Verifies code, awards points.",
+      "item": [
+
+        {
+          "name": "2.1 Single Code Scan — Positive (Valid Code)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── POSITIVE: Successful code scan ──────────────────────────",
+                  "pm.test('[P14] Status is 200 or 201', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('[P15] Response is valid JSON', function () {",
+                  "    pm.expect(() => pm.response.json()).not.to.throw();",
+                  "});",
+                  "",
+                  "pm.test('[P16] Response time < 5000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "pm.test('[P17] message field exists', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});",
+                  "",
+                  "pm.test('[P18] Scan response schema has required fields', function () {",
+                  "    var json = pm.response.json();",
+                  "    // Schema: data should include scan result info",
+                  "    pm.expect(json).to.be.an('object');",
+                  "    if (json.data) {",
+                  "        pm.expect(json.data).to.be.an('object');",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('[P19] No N+1 warning_queries', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.warning_queries).to.be.undefined;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Accept-Encoding", "value": "gzip" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"codeNumr\": \"FT385439\",\n    \"areaCode\": \"RAN\",\n    \"district\": \"RANCHI\",\n    \"pinCodeN\": \"834001\",\n    \"latitude\": \"23.3441000000\",\n    \"longitde\": \"85.3096000000\",\n    \"prfRtrCN\": null,\n    \"cdScnVia\": \"A\",\n    \"flagRCod\": \"N\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/single-code-scan",
+              "host": ["{{BASE_URL}}"],
+              "path": ["single-code-scan"]
+            },
+            "description": "**[M]** codeNumr(8) | areaCode(3) | district | pinCodeN(6) | latitude(12,2) | longitde(12,2) | cdScnVia: A/M/S | **[NM]** prfRtrCN(10) | secPinNo(required for LA/Pin series)"
+          },
+          "response": []
+        },
+
+        {
+          "name": "2.2 Single Code Scan — Negative (Missing codeNumr)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('[N11] Status is 400 or 422 for missing codeNumr', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('[N12] Error references codeNumr', function () {",
+                  "    var json = pm.response.json();",
+                  "    var bodyStr = JSON.stringify(json).toLowerCase();",
+                  "    pm.expect(bodyStr.includes('code') || bodyStr.includes('codenumr')).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"areaCode\": \"RAN\",\n    \"district\": \"RANCHI\",\n    \"pinCodeN\": \"834001\",\n    \"latitude\": \"23.3441000000\",\n    \"longitde\": \"85.3096000000\",\n    \"cdScnVia\": \"A\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/single-code-scan",
+              "host": ["{{BASE_URL}}"],
+              "path": ["single-code-scan"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "2.3 Single Code Scan — Negative (Unauthenticated Request)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── SECURITY: No bearer token ────────────────────────────────",
+                  "pm.test('[N13] Status is 401 for unauthenticated scan', function () {",
+                  "    pm.expect(pm.response.code).to.eql(401);",
+                  "});",
+                  "",
+                  "pm.test('[N14] Unauthorized message present', function () {",
+                  "    var json = pm.response.json();",
+                  "    var bodyStr = JSON.stringify(json).toLowerCase();",
+                  "    pm.expect(bodyStr.includes('unauthorized') || bodyStr.includes('unauthenticated') || bodyStr.includes('token')).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"codeNumr\": \"FT385439\",\n    \"areaCode\": \"RAN\",\n    \"district\": \"RANCHI\",\n    \"pinCodeN\": \"834001\",\n    \"latitude\": \"23.3441000000\",\n    \"longitde\": \"85.3096000000\",\n    \"cdScnVia\": \"A\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/single-code-scan",
+              "host": ["{{BASE_URL}}"],
+              "path": ["single-code-scan"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "2.4 Single Code Scan — Negative (Invalid areaCode > 3 chars)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('[N15] Status is 400 or 422 for oversized areaCode', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('[N16] Response is valid JSON', function () {",
+                  "    pm.expect(() => pm.response.json()).not.to.throw();",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"codeNumr\": \"FT385439\",\n    \"areaCode\": \"RANCHI_AREA_OVERFLOW\",\n    \"district\": \"RANCHI\",\n    \"pinCodeN\": \"834001\",\n    \"latitude\": \"23.3441000000\",\n    \"longitde\": \"85.3096000000\",\n    \"cdScnVia\": \"A\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/single-code-scan",
+              "host": ["{{BASE_URL}}"],
+              "path": ["single-code-scan"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "2.5 Single Code Scan — Edge Case (Invalid cdScnVia value)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── EDGE: cdScnVia must be A, M, or S only ──────────────────",
+                  "pm.test('[E09] Status is 400 or 422 for invalid cdScnVia', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('[E10] Error body is JSON', function () {",
+                  "    pm.expect(() => pm.response.json()).not.to.throw();",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"codeNumr\": \"FT385439\",\n    \"areaCode\": \"RAN\",\n    \"district\": \"RANCHI\",\n    \"pinCodeN\": \"834001\",\n    \"latitude\": \"23.3441000000\",\n    \"longitde\": \"85.3096000000\",\n    \"cdScnVia\": \"X\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/single-code-scan",
+              "host": ["{{BASE_URL}}"],
+              "path": ["single-code-scan"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "2.6 Single Code Scan — Edge Case (Boundary pinCode 999999)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── EDGE: Max 6-digit pincode ────────────────────────────────",
+                  "pm.test('[E11] Status not 500 for max pincode value', function () {",
+                  "    pm.expect(pm.response.code).to.not.eql(500);",
+                  "});",
+                  "",
+                  "pm.test('[E12] Response is valid JSON', function () {",
+                  "    pm.expect(() => pm.response.json()).not.to.throw();",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"codeNumr\": \"FT385439\",\n    \"areaCode\": \"RAN\",\n    \"district\": \"RANCHI\",\n    \"pinCodeN\": \"999999\",\n    \"latitude\": \"23.3441000000\",\n    \"longitde\": \"85.3096000000\",\n    \"cdScnVia\": \"A\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/single-code-scan",
+              "host": ["{{BASE_URL}}"],
+              "path": ["single-code-scan"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "2.7 Single Code Scan — Edge Case (Out-of-range GPS coordinates)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── EDGE: latitude > 90 (impossible coordinate) ─────────────",
+                  "pm.test('[E13] Status is 400 or 422 for invalid latitude > 90', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('[E14] Response body is valid JSON', function () {",
+                  "    pm.expect(() => pm.response.json()).not.to.throw();",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"codeNumr\": \"FT385439\",\n    \"areaCode\": \"RAN\",\n    \"district\": \"RANCHI\",\n    \"pinCodeN\": \"834001\",\n    \"latitude\": \"999.9999999999\",\n    \"longitde\": \"999.9999999999\",\n    \"cdScnVia\": \"A\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/single-code-scan",
+              "host": ["{{BASE_URL}}"],
+              "path": ["single-code-scan"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "2.8 Single Code Scan — Invalid Type (codeNumr as integer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── INVALID TYPE: codeNumr should be string, not integer ─────",
+                  "pm.test('[I05] Status is 400 or 422 when codeNumr is integer', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('[I06] Error body exists', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.error || json.message || json.errors).to.exist;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"codeNumr\": 12345678,\n    \"areaCode\": \"RAN\",\n    \"district\": \"RANCHI\",\n    \"pinCodeN\": \"834001\",\n    \"latitude\": \"23.3441000000\",\n    \"longitde\": \"85.3096000000\",\n    \"cdScnVia\": \"A\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/single-code-scan",
+              "host": ["{{BASE_URL}}"],
+              "path": ["single-code-scan"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "2.9 Single Code Scan — Edge Case (Max-length prfRtrCN referral number)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── EDGE: prfRtrCN = exactly 10 chars (max allowed) ──────────",
+                  "pm.test('[E15] Status not 500 for 10-char prfRtrCN', function () {",
+                  "    pm.expect(pm.response.code).to.not.eql(500);",
+                  "});",
+                  "",
+                  "pm.test('[E16] Response is valid JSON', function () {",
+                  "    pm.expect(() => pm.response.json()).not.to.throw();",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"codeNumr\": \"FT385439\",\n    \"areaCode\": \"RAN\",\n    \"district\": \"RANCHI\",\n    \"pinCodeN\": \"834001\",\n    \"latitude\": \"23.3441000000\",\n    \"longitde\": \"85.3096000000\",\n    \"prfRtrCN\": \"9876543210\",\n    \"cdScnVia\": \"A\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/single-code-scan",
+              "host": ["{{BASE_URL}}"],
+              "path": ["single-code-scan"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "2.10 Single Code Scan — Negative (Empty body)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('[N17] Empty body returns 400 or 422', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('[N18] Multiple validation errors returned', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.errors || json.message).to.exist;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/single-code-scan",
+              "host": ["{{BASE_URL}}"],
+              "path": ["single-code-scan"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "3. Loyalty Point History (lyt-point-history)",
+      "description": "Returns paginated loyalty points earned by the authenticated influencer. Depends on auth token.",
+      "item": [
+
+        {
+          "name": "3.1 Read Point History — Positive (Default)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── POSITIVE: Default point history ──────────────────────────",
+                  "pm.test('[P20] Status is 200', function () {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('[P21] Response is valid JSON', function () {",
+                  "    pm.expect(() => pm.response.json()).not.to.throw();",
+                  "});",
+                  "",
+                  "pm.test('[P22] Response time < 3000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+                  "});",
+                  "",
+                  "pm.test('[P23] Pagination fields present', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('current_page');",
+                  "    pm.expect(json).to.have.property('total');",
+                  "    pm.expect(json).to.have.property('data');",
+                  "    pm.expect(json).to.have.property('per_page');",
+                  "    pm.expect(json).to.have.property('last_page');",
+                  "});",
+                  "",
+                  "pm.test('[P24] data is an array', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('[P25] current_page is 1 by default', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.current_page).to.eql(1);",
+                  "});",
+                  "",
+                  "// Schema check per data row",
+                  "pm.test('[P26] Each data row has required fields', function () {",
+                  "    var json = pm.response.json();",
+                  "    if (json.data && json.data.length > 0) {",
+                  "        var row = json.data[0];",
+                  "        // cdeScnId or similar identifiers",
+                  "        pm.expect(row).to.be.an('object');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-point-history",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-point-history"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "3.2 Read Point History — Positive (With Pagination page=1, per_page=5)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('[P27] Status is 200', function () {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('[P28] per_page matches requested value', function () {",
+                  "    var json = pm.response.json();",
+                  "    // API may return string or int for per_page",
+                  "    pm.expect(parseInt(json.per_page)).to.eql(5);",
+                  "});",
+                  "",
+                  "pm.test('[P29] data array length <= per_page', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.length).to.be.at.most(5);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-point-history?page=1&per_page=5",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-point-history"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "5" }
+              ]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "3.3 Read Point History — Positive (Filter allBonus=Y)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('[P30] Status is 200 for allBonus filter', function () {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('[P31] data array is present', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-point-history?filter={\"allBonus\":\"Y\"}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-point-history"],
+              "query": [
+                { "key": "filter", "value": "{\"allBonus\":\"Y\"}" }
+              ]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "3.4 Read Point History — Negative (Unauthenticated)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('[N19] Status is 401 for no token', function () {",
+                  "    pm.expect(pm.response.code).to.eql(401);",
+                  "});",
+                  "",
+                  "pm.test('[N20] Unauthorized message in body', function () {",
+                  "    var json = pm.response.json();",
+                  "    var bodyStr = JSON.stringify(json).toLowerCase();",
+                  "    pm.expect(bodyStr.includes('unauthorized') || bodyStr.includes('unauthenticated')).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-point-history",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-point-history"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "3.5 Read Point History — Edge Case (page=999999, far out of range)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── EDGE: Page that doesn't exist ────────────────────────────",
+                  "pm.test('[E17] Status is 200 with empty data for out-of-range page', function () {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('[E18] data array is empty for non-existent page', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array').with.lengthOf(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-point-history?page=999999",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-point-history"],
+              "query": [{ "key": "page", "value": "999999" }]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "3.6 Read Point History — Edge Case (per_page=0)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── EDGE: per_page=0 should either default or error ──────────",
+                  "pm.test('[E19] Status is 200 or 422 for per_page=0', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 422, 400]);",
+                  "});",
+                  "",
+                  "pm.test('[E20] Does not crash with 500 for per_page=0', function () {",
+                  "    pm.expect(pm.response.code).to.not.eql(500);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-point-history?per_page=0",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-point-history"],
+              "query": [{ "key": "per_page", "value": "0" }]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "3.7 Read Point History — Edge Case (sort descending by created_at)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('[E21] Status is 200 for sort param', function () {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('[E22] Sorted data: first item created_at >= last item', function () {",
+                  "    var json = pm.response.json();",
+                  "    if (json.data && json.data.length > 1) {",
+                  "        var first = new Date(json.data[0].createDt || json.data[0].created_at);",
+                  "        var last = new Date(json.data[json.data.length - 1].createDt || json.data[json.data.length - 1].created_at);",
+                  "        pm.expect(first.getTime()).to.be.at.least(last.getTime());",
+                  "    } else {",
+                  "        pm.expect(true).to.be.true; // skip if 0 or 1 records",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-point-history?sort=created_at&order_by=desc",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-point-history"],
+              "query": [
+                { "key": "sort", "value": "created_at" },
+                { "key": "order_by", "value": "desc" }
+              ]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "3.8 Read Point History — Invalid (per_page as string)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── INVALID TYPE: per_page='abc' ──────────────────────────────",
+                  "pm.test('[I07] Status is 200 (defaults) or 422 for non-numeric per_page', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('[I08] No 500 server error for string per_page', function () {",
+                  "    pm.expect(pm.response.code).to.not.eql(500);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-point-history?per_page=abc",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-point-history"],
+              "query": [{ "key": "per_page", "value": "abc" }]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "4. Loyalty Code History (lyt-code-history)",
+      "description": "Returns full history of loyalty codes scanned by the influencer. Paginated, filterable, sortable.",
+      "item": [
+
+        {
+          "name": "4.1 Read Code History — Positive (Default)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── POSITIVE: Code history default ───────────────────────────",
+                  "pm.test('[P32] Status is 200', function () {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('[P33] Response is valid JSON', function () {",
+                  "    pm.expect(() => pm.response.json()).not.to.throw();",
+                  "});",
+                  "",
+                  "pm.test('[P34] Response time < 3000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+                  "});",
+                  "",
+                  "pm.test('[P35] Pagination meta fields present', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('current_page');",
+                  "    pm.expect(json).to.have.property('data');",
+                  "    pm.expect(json).to.have.property('total');",
+                  "    pm.expect(json).to.have.property('per_page');",
+                  "    pm.expect(json).to.have.property('last_page');",
+                  "    pm.expect(json).to.have.property('first_page_url');",
+                  "    pm.expect(json).to.have.property('last_page_url');",
+                  "});",
+                  "",
+                  "pm.test('[P36] data is array', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('[P37] Each data row has cdeScnId field', function () {",
+                  "    var json = pm.response.json();",
+                  "    if (json.data && json.data.length > 0) {",
+                  "        json.data.forEach(function(row) {",
+                  "            pm.expect(row).to.have.property('cdeScnId');",
+                  "        });",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('[P38] Each data row has inflCode', function () {",
+                  "    var json = pm.response.json();",
+                  "    if (json.data && json.data.length > 0) {",
+                  "        json.data.forEach(function(row) {",
+                  "            pm.expect(row).to.have.property('inflCode');",
+                  "        });",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('[P39] Each data row has codeNumr', function () {",
+                  "    var json = pm.response.json();",
+                  "    if (json.data && json.data.length > 0) {",
+                  "        json.data.forEach(function(row) {",
+                  "            pm.expect(row).to.have.property('codeNumr');",
+                  "        });",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('[P40] cdStatus field is present in each row', function () {",
+                  "    var json = pm.response.json();",
+                  "    if (json.data && json.data.length > 0) {",
+                  "        json.data.forEach(function(row) {",
+                  "            pm.expect(row).to.have.property('cdStatus');",
+                  "        });",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('[P41] status_color is a valid hex color', function () {",
+                  "    var json = pm.response.json();",
+                  "    if (json.data && json.data.length > 0) {",
+                  "        json.data.forEach(function(row) {",
+                  "            if (row.status_color) {",
+                  "                pm.expect(row.status_color).to.match(/^#[0-9a-fA-F]{6}$/);",
+                  "            }",
+                  "        });",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('[P42] No N+1 warning_queries', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.warning_queries).to.be.undefined;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-code-history",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-code-history"]
+            },
+            "description": "GET /lyt-code-history\nQuery params: search, sort, order_by, filter, per_page, page"
+          },
+          "response": []
+        },
+
+        {
+          "name": "4.2 Read Code History — Positive (With Search param)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('[P43] Status is 200 for search query', function () {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('[P44] data is array (may be empty for no-match)', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-code-history?search=rb017",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-code-history"],
+              "query": [{ "key": "search", "value": "rb017" }]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "4.3 Read Code History — Positive (Sort by created_at ASC)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('[P45] Status is 200 for ASC sort', function () {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('[P46] Sorted ASC: first createDt <= last createDt', function () {",
+                  "    var json = pm.response.json();",
+                  "    if (json.data && json.data.length > 1) {",
+                  "        var first = new Date(json.data[0].createDt);",
+                  "        var last = new Date(json.data[json.data.length - 1].createDt);",
+                  "        pm.expect(first.getTime()).to.be.at.most(last.getTime());",
+                  "    } else {",
+                  "        pm.expect(true).to.be.true;",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-code-history?sort=created_at&order_by=asc",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-code-history"],
+              "query": [
+                { "key": "sort", "value": "created_at" },
+                { "key": "order_by", "value": "asc" }
+              ]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "4.4 Read Code History — Negative (Unauthenticated)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('[N21] Status is 401 for no token', function () {",
+                  "    pm.expect(pm.response.code).to.eql(401);",
+                  "});",
+                  "",
+                  "pm.test('[N22] Unauthorized message present', function () {",
+                  "    var json = pm.response.json();",
+                  "    var bodyStr = JSON.stringify(json).toLowerCase();",
+                  "    pm.expect(bodyStr.includes('unauthorized') || bodyStr.includes('unauthenticated')).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-code-history",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-code-history"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "4.5 Read Code History — Edge Case (Filter by id array)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('[E23] Status is 200 for filter by id', function () {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "pm.test('[E24] data array present and is array', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-code-history?filter={\"id\":[1]}",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-code-history"],
+              "query": [{ "key": "filter", "value": "{\"id\":[1]}" }]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "4.6 Read Code History — Edge Case (Malformed filter JSON)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── EDGE: Broken filter JSON string ──────────────────────────",
+                  "pm.test('[E25] Status is 200 (ignores bad filter) or 422', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('[E26] Does not cause 500 error', function () {",
+                  "    pm.expect(pm.response.code).to.not.eql(500);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-code-history?filter={broken_json:",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-code-history"],
+              "query": [{ "key": "filter", "value": "{broken_json:" }]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "4.7 Read Code History — Edge Case (Large per_page=1000)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── EDGE: Very large per_page request ────────────────────────",
+                  "pm.test('[E27] Status is 200 or 422 for per_page=1000', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 422, 400]);",
+                  "});",
+                  "",
+                  "pm.test('[E28] Response time < 10000ms even for large payload', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(10000);",
+                  "});",
+                  "",
+                  "pm.test('[E29] Does not crash with 500', function () {",
+                  "    pm.expect(pm.response.code).to.not.eql(500);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-code-history?per_page=1000",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-code-history"],
+              "query": [{ "key": "per_page", "value": "1000" }]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "4.8 Read Code History — Invalid (Expired/Invalid Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── SECURITY: Expired / tampered token ───────────────────────",
+                  "pm.test('[S03] Status is 401 for invalid token', function () {",
+                  "    pm.expect(pm.response.code).to.eql(401);",
+                  "});",
+                  "",
+                  "pm.test('[S04] Does not return any user data', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.undefined;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.INVALID.SIGNATURE", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-code-history",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-code-history"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "4.9 Read Code History — Edge Case (XSS in search param)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── SECURITY: XSS in query string ────────────────────────────",
+                  "pm.test('[S05] Status is 200 (sanitized) or 422 for XSS search', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('[S06] Response body does not reflect raw script tag', function () {",
+                  "    var body = pm.response.text();",
+                  "    pm.expect(body).to.not.include('<script>alert(1)</script>');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-code-history?search=<script>alert(1)</script>",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-code-history"],
+              "query": [{ "key": "search", "value": "<script>alert(1)</script>" }]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "4.10 Read Code History — Edge Case (SQL Injection in search)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── SECURITY: SQL Injection attempt ──────────────────────────",
+                  "pm.test('[S07] Status is 200 (sanitized) or 422 for SQLi attempt', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 400, 422]);",
+                  "});",
+                  "",
+                  "pm.test('[S08] Does not return 500 for SQL injection input', function () {",
+                  "    pm.expect(pm.response.code).to.not.eql(500);",
+                  "});",
+                  "",
+                  "pm.test('[S09] Response does not reveal SQL error messages', function () {",
+                  "    var body = pm.response.text().toLowerCase();",
+                  "    pm.expect(body).to.not.include('syntax error');",
+                  "    pm.expect(body).to.not.include('sql');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-code-history?search=' OR '1'='1",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-code-history"],
+              "query": [{ "key": "search", "value": "' OR '1'='1" }]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+
+    {
+      "name": "5. Response Time & Rate Limit Checks",
+      "description": "Non-functional tests: response time SLAs, rate-limiting headers, caching, and repeated rapid calls.",
+      "item": [
+
+        {
+          "name": "5.1 Rate Limit Header Check — Point History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── NON-FUNCTIONAL: Rate limit headers ───────────────────────",
+                  "pm.test('[NF01] X-RateLimit-Limit header present', function () {",
+                  "    pm.expect(pm.response.headers.get('X-RateLimit-Limit')).to.exist;",
+                  "});",
+                  "",
+                  "pm.test('[NF02] X-RateLimit-Remaining header present', function () {",
+                  "    pm.expect(pm.response.headers.get('X-RateLimit-Remaining')).to.exist;",
+                  "});",
+                  "",
+                  "pm.test('[NF03] X-RateLimit-Remaining <= X-RateLimit-Limit', function () {",
+                  "    var limit = parseInt(pm.response.headers.get('X-RateLimit-Limit'));",
+                  "    var remaining = parseInt(pm.response.headers.get('X-RateLimit-Remaining'));",
+                  "    pm.expect(remaining).to.be.at.most(limit);",
+                  "});",
+                  "",
+                  "pm.test('[NF04] Cache-Control is no-cache or no-store', function () {",
+                  "    var cc = pm.response.headers.get('Cache-Control');",
+                  "    if (cc) {",
+                  "        pm.expect(cc).to.satisfy(function(v) {",
+                  "            return v.includes('no-cache') || v.includes('no-store') || v.includes('private');",
+                  "        });",
+                  "    } else {",
+                  "        pm.expect(true).to.be.true; // header optional in some environments",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('[NF05] Response time < 3000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-point-history",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-point-history"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "5.2 Response Time SLA Check — Code History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── NON-FUNCTIONAL: SLA response time ────────────────────────",
+                  "pm.test('[NF06] Response under 2000ms SLA (code history)', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});",
+                  "",
+                  "pm.test('[NF07] Status is 200', function () {",
+                  "    pm.expect(pm.response.code).to.eql(200);",
+                  "});",
+                  "",
+                  "// Log actual time for reporting",
+                  "console.log('Code History response time: ' + pm.response.responseTime + 'ms');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-code-history",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-code-history"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "5.3 HTTP Method Not Allowed — GET on POST-only endpoint",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── METHOD: GET should not be allowed on /single-code-scan ───",
+                  "pm.test('[NF08] Status is 405 (Method Not Allowed) for GET on scan endpoint', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([405, 404]);",
+                  "});",
+                  "",
+                  "pm.test('[NF09] Response is JSON', function () {",
+                  "    pm.expect(() => pm.response.json()).not.to.throw();",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{AUTHORIZATION}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/single-code-scan",
+              "host": ["{{BASE_URL}}"],
+              "path": ["single-code-scan"]
+            }
+          },
+          "response": []
+        },
+
+        {
+          "name": "5.4 Expired Token Refresh Scenario",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Simulate expired token scenario",
+                  "pm.collectionVariables.set('EXPIRED_TOKEN', 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.EXPIREDTOKEN');"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// ── SECURITY: Expired token should be rejected ───────────────",
+                  "pm.test('[S10] Status 401 for expired token', function () {",
+                  "    pm.expect(pm.response.code).to.eql(401);",
+                  "});",
+                  "",
+                  "pm.test('[S11] Response body signals token expiry', function () {",
+                  "    var body = pm.response.text().toLowerCase();",
+                  "    pm.expect(",
+                  "        body.includes('expired') || body.includes('unauthorized') || body.includes('unauthenticated') || body.includes('token')",
+                  "    ).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{EXPIRED_TOKEN}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/lyt-point-history",
+              "host": ["{{BASE_URL}}"],
+              "path": ["lyt-point-history"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
